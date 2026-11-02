@@ -3,7 +3,7 @@
 Physical AI 応用1講座 最終課題　説明資料
 アカウント：**Rick0218**
 
-> 以下の数値は、収録した作業ログと結果ファイルから転記した実測値である。GitHub・YouTubeのURLは公開後に追記する。
+> 以下の数値は、収録した作業ログと結果ファイルから転記した実測値である。
 
 ## 1. 課題の概要と目的
 
@@ -261,7 +261,7 @@ nodの谷の閾値は、お手本を見た後で0.05から0.15に変えた（山
 
 提出動画は [submission_ad.mp4](../crane_act/videos/submission_ad.mp4)（2分10秒、等速）で、内容は1.3節のとおりである。リポジトリの `crane_act/scripts/make_submission_video.py` で、録画済みの動画から組み立てた。
 
-- 動画：【YouTubeのURL】
+- 動画：https://youtu.be/JBdugjrzdls
 - コード：https://github.com/rick0218gray-sketch/physical-AI1-var1
 
 講義のmatsuolab/pai_training、physicalai_teleop、CRANE+関連パッケージ、LeRobot ACT、Ollamaと使用したLLMを基盤にしている。実装・デバッグにはClaude、整理と草稿の作成にはCodexとClaudeを使った。変更・追加した内容は上記のとおりで、ライセンスの確認範囲は [来歴](provenance.md) に記した。上流に未確認の部分があるため、全体のLICENSEは付けていない。
