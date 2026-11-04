@@ -4,7 +4,7 @@ Physical AI 応用1講座 最終課題。アカウント：**Rick0218**
 
 CRANE+ V2の6つの動作を、スクリプトで自動生成したお手本からACT（Action Chunking with Transformers）で学習した。日本語の指令はローカルLLMが動作の列に変換し、Gazebo上で順に実行する。数値はすべて [docs/](docs/) の実験ログと各 `results/` に記録した実測値である。
 
-- 提出動画（2分10秒、等速。指令デモはLLMの応答待ちのみカット）：[submission_ad.mp4](crane_act/videos/submission_ad.mp4)
+- 提出動画（2分10秒、等速。指令デモはLLMの応答待ちのみカット）：[YouTube](https://youtu.be/JBdugjrzdls) ／ リポジトリ内の [submission_ad.mp4](crane_act/videos/submission_ad.mp4)
 - 説明資料：[docs/report.md](docs/report.md)
 
 ```text
@@ -27,10 +27,43 @@ CRANE+ V2の6つの動作を、スクリプトで自動生成したお手本か�
 | [学習の作業ログ](docs/A_log.md) / [言語計画の作業ログ](docs/D_log.md) | 一次資料。旧ディレクトリ名（a_crane / d_llm）は当時の記録として残る |
 | [Colab結果](docs/colab_llm_result.md) | A100での40件評価の集計 |
 | [来歴・ライセンス](docs/provenance.md) | 上流そのまま／改変／自作の区分と確認できた根拠 |
+| [tests](tests/) / [CI](.github/workflows/ci.yml) | ハードウェア不要のテスト（pytest）と、それを回すGitHub Actions |
+
+## どこで何が動くか
+
+| 内容 | 必要なもの | CIで確認 |
+|---|---|---|
+| 学習済みスキルの実行、データ収集・学習、軌道評価、動画の録画・組み立て | ROS 2 Humble・Gazebo・CRANE+パッケージ・pai_training（pixi、torch / LeRobot）。学習・推論はGPU推奨 | ×（構文チェックのみ） |
+| 日本語指令の計画・40件評価の測定 | Ollama（またはCodex / Claude CLI）とLLM | ×（偽のLLMで配線のみ） |
+| 計画の検証・採点ロジック、収録済み結果からの表の再集計、お手本軌道の生成と成功判定、同梱チェックポイントの整合 | Python 3.10以上、pytest、numpy | ○ |
+
+### ハードウェアなしで確認する
+
+```bash
+pip install -r requirements-dev.txt
+python -m compileall -q nl_commander crane_act tests
+python -m pytest -q
+```
+
+テストは収録済みの結果を読むだけで書き換えない。主な確認内容：
+
+- `nl_commander/eval/results/` の4つの表（mock40 / ollama40 / codex40 / real40）が、同じフォルダのJSONLから1文字違わず再集計できる
+- 収録済みJSONLの各行を現在の採点関数で採点し直すと、記録された判定と一致する
+- 偽のLLM（`commander.ollama_chat` を差し替え）と [mock_run_skill.sh](nl_commander/mock_run_skill.sh) で、指令 → 計画 → 逐次実行 → JSONLログ・字幕が最後まで通る
+- `crane_act/scripts/skills.py` のお手本軌道が `eval_traj.py` の成功基準を満たし、同梱の6チェックポイントが欠けていない（torchは使わない）
+
+表の再集計だけを手で行う例（出力先を変えるので収録済みの表は上書きしない）：
+
+```bash
+cd nl_commander
+python3 eval/run_eval.py --from-results --tag real40 --skills ../crane_act/skills.json \
+    --models qwen2.5:3b-instruct qwen2.5:7b-instruct llama3.1:8b --summary-out /tmp/real40__summary.md
+diff /tmp/real40__summary.md eval/results/real40__summary.md
+```
 
 ## 実行環境とパス
 
-以下は再現用の手順である。必要な依存ソフト・モデルは別途用意する。
+以下は再現用の手順である。必要な依存ソフト・モデルは別途用意する。**この節以降のコマンドはROS 2・Gazebo・GPU・Ollamaが必要で、CIでは実行・検証していない**（作者の環境で使った手順を記載している）。
 
 - 動作の学習・実行：ROS 2 Humble、Ignition Gazebo、CRANE+パッケージ、physicalai_teleop、matsuolab/pai_trainingとそのpixi環境が必要。作業時は `airobotbook/ros2-desktop-ai-robot-book-humble` イメージを使用した。pai_trainingのコミットやLeRobotの厳密な版は記録から確定できない。
 - 言語による計画：Python標準ライブラリとOllama（0.40.13）。主にqwen2.5:3b-instructを使用。`OLLAMA_URL` で接続先を指定する。
@@ -40,7 +73,7 @@ CRANE+ V2の6つの動作を、スクリプトで自動生成したお手本か�
 
 ## 学習済みスキルを動かす
 
-ROS環境を用意し、上記のマウントを行ったLinuxコンテナ内で：
+（要ROS 2 / Gazebo。CIでは未検証）ROS環境を用意し、上記のマウントを行ったLinuxコンテナ内で：
 
 ```bash
 SIM=demo bash /workspace/a_crane/scripts/sim_ctl.sh start true
@@ -60,6 +93,8 @@ bash /workspace/a_crane/scripts/build_and_train.sh bow 50 phase 2500
 詳しいスクリプトは [crane_act/README.md](crane_act/README.md)、スキル設定は [skills.json](crane_act/skills.json)。常駐サーバの終了は `skill_server.sh stop`。プロセスの終了コードだけで成功を判断せず、`success=` と軌道評価も確認する。
 
 ## 日本語の指令で動かす
+
+（要Ollama。実行には上記のコンテナも必要。CIでは未検証）
 
 ```bash
 cd /workspace/nl_commander
@@ -99,7 +134,7 @@ python3 eval/run_eval.py --skills ../a_crane/skills.json --tag review40 --models
 
 ACTの最終チェックポイント6個（各17,030,228 bytes）を通常のgitで収録した。どれもGitHubの単一ファイル警告（50MB）未満で、cloneだけで同じ方策を確認できる。
 
-- [提出動画（2分10秒）](crane_act/videos/submission_ad.mp4)：日本語指令のデモ → 学習した6動作。説明は [説明資料](docs/report.md) にまとめた
+- [提出動画（2分10秒）](crane_act/videos/submission_ad.mp4)（[YouTube](https://youtu.be/JBdugjrzdls)）：日本語指令のデモ → 学習した6動作。説明は [説明資料](docs/report.md) にまとめた
 - [日本語指令のデモ（36.8秒）](crane_act/videos/demo_nl_commander.mp4)：指令 → LLMの判定・計画 → ACTスキルの逐次実行。範囲外は拒否、曖昧なものは確認
 - [学習した動作のまとめ（128.9秒）](crane_act/videos/montage_a_crane.mp4)：講義手順と改良版の比較、6スキル
 
