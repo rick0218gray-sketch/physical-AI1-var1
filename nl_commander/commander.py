@@ -15,6 +15,7 @@
 import argparse
 import datetime as dt
 import json
+import math
 import os
 import re
 import shlex
@@ -387,21 +388,34 @@ def cli_plan(backend, model, command, skills, timeout=240):
 # ----------------------------------------------------------------- planning
 def normalize_plan(obj, skills):
     """LLM 出力を検証・正規化する。(plan, warnings)"""
+    if not isinstance(obj, dict):
+        # JSON としては正しいがオブジェクトでない(配列・文字列など)。make_plan の再試行対象にする
+        raise RuntimeError(f"plan JSON がオブジェクトではない: {type(obj).__name__}")
     warns = []
     status = obj.get("status")
     if status not in ("ok", "reject", "clarify"):
         status = "clarify"
         warns.append("status 不正 -> clarify")
     steps = []
-    for st in obj.get("steps") or []:
+    raw_steps = obj.get("steps") or []
+    if not isinstance(raw_steps, list):
+        warns.append(f"steps が配列でない ({type(raw_steps).__name__}) -> 空として扱う")
+        raw_steps = []
+    for st in raw_steps:
+        if not isinstance(st, dict):
+            warns.append(f"不正なステップ {st!r} を除外")
+            continue
         name = st.get("skill")
-        if name not in skills:
+        if not isinstance(name, str) or name not in skills:
             warns.append(f"未知スキル {name!r} を除外")
             continue
         lo, hi, df = sec_range(skills[name])
         try:
             sec = float(st.get("seconds", df))
         except (TypeError, ValueError):
+            sec = df
+        if not math.isfinite(sec):  # Python の json は NaN / Infinity も受け付ける
+            warns.append(f"{name} の秒数 {sec} は不正 -> 標準 {df:g} 秒")
             sec = df
         if not (lo <= sec <= hi):
             warns.append(f"{name} の秒数 {sec} を {lo:g}-{hi:g} に丸め")
