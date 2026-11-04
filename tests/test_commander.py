@@ -2,6 +2,8 @@
 偽の LLM + mock_run_skill.sh による逐次実行のテスト。"""
 import json
 import math
+import os
+import shutil
 
 import pytest
 
@@ -249,6 +251,11 @@ def _main(tmp_path, monkeypatch, answer, *extra):
     return rc, events, srt, status
 
 
+needs_bash = pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None,
+                                reason="mock_run_skill.sh を実行するには POSIX の bash が必要")
+
+
+@needs_bash
 def test_main_runs_mock_runner(tmp_path, monkeypatch):
     answer = _plan("ok", {"skill": "point_right", "seconds": 1, "reason": "右"},
                    {"skill": "bow", "seconds": 1, "reason": "礼"})
