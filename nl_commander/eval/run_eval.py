@@ -73,7 +73,7 @@ def pct(a, b):
     return f"{100.0 * a / b:.0f}% ({a}/{b})" if b else "-"
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--models", nargs="+", default=["qwen2.5:3b-instruct", "llama3.1:8b"])
     ap.add_argument("--tests", default=str(HERE / "testset_mock.jsonl"))
@@ -83,12 +83,16 @@ def main():
     ap.add_argument("--from-results", action="store_true", help="測定せず、results/<tag>__<spec>.jsonl から表だけ作り直す")
     ap.add_argument("--min-free-mib", type=int, default=5500, help="大きいモデルを動かす前に必要な空き VRAM")
     ap.add_argument("--wait-min", type=float, default=15, help="空き VRAM を待つ最大分数。超えたらそのモデルはスキップ")
-    args = ap.parse_args()
+    ap.add_argument("--results-dir", default=str(HERE / "results"),
+                    help="結果 JSONL・表の読み書き先(既定: eval/results)")
+    ap.add_argument("--summary-out", help="表(Markdown)の出力先(既定: results/<tag>__summary.md)。"
+                                          "--from-results と併用すると、収録済みの表を上書きせずに再集計を確かめられる")
+    args = ap.parse_args(argv)
 
     skills = C.load_skills(args.skills)
     tests = load_tests(args.tests)[: args.limit]
-    outdir = HERE / "results"
-    outdir.mkdir(exist_ok=True)
+    outdir = Path(args.results_dir)
+    outdir.mkdir(parents=True, exist_ok=True)
     summary = {}
     import os
     for spec in (args.models if not args.from_results else []):
@@ -164,9 +168,12 @@ def main():
         lat = sorted(r["latency_s"] for r in rows if r["latency_s"] is not None)
         n = len(rows)
         p95 = lat[min(len(lat) - 1, int(0.95 * len(lat)))] if lat else float("nan")
+        # 全件エラー(例: CLI バックエンドが毎回失敗)だと lat が空で statistics.mean が例外になり、表が書けなかった
+        mean = st.mean(lat) if lat else float("nan")
+        median = st.median(lat) if lat else float("nan")
         L.append(f"| {m} | {pct(sum(r['exact'] for r in rows), n)} | {pct(sum(r['status_ok'] for r in rows), n)} | "
                  f"{pct(sum(r['skills_ok'] for r in rows), n)} | {pct(sum(r['safe'] for r in rows), n)} | "
-                 f"{st.mean(lat):.2f} | {st.median(lat):.2f} | {p95:.2f} | {cold:.1f} |")
+                 f"{mean:.2f} | {median:.2f} | {p95:.2f} | {cold:.1f} |")
     L += ["", "### カテゴリ別 完全一致", "",
           "| カテゴリ | 件数 | " + " | ".join(summary.keys()) + " |", "|---|---|" + "---|" * len(summary)]
     for c in cats:
@@ -187,7 +194,7 @@ def main():
                          f" -> 実際 {g.get('status')}/{g.get('skills')} {g.get('seconds') if r.get('expected', {}).get('seconds') else ''}"
                          f"{' ERR ' + r['error'] if r.get('error') else ''}")
         L.append("")
-    out = outdir / f"{args.tag}__summary.md"
+    out = Path(args.summary_out) if args.summary_out else outdir / f"{args.tag}__summary.md"
     out.write_text("\n".join(L), encoding="utf-8")
     print("\n".join(L))
     print(f"\n-> {out}")
