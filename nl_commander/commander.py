@@ -604,7 +604,14 @@ def run_plan(command, result, skills, args, log):
             try:
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                         encoding="utf-8", errors="replace")
-                timer = threading.Timer(st["seconds"] + args.exec_timeout_margin, proc.kill)
+                timed_out = False
+
+                def _kill_on_timeout():
+                    nonlocal timed_out
+                    timed_out = True
+                    proc.kill()
+
+                timer = threading.Timer(st["seconds"] + args.exec_timeout_margin, _kill_on_timeout)
                 timer.start()
                 for line in proc.stdout:
                     sys.stdout.write("    | " + line)
@@ -618,7 +625,9 @@ def run_plan(command, result, skills, args, log):
                         skill_ok = m.group(1) == "True"
                 rc = proc.wait()
                 timer.cancel()
-                if rc < 0:
+                # 時間切れで kill したときは 124 にそろえる。POSIX では rc が負(-9)になるが、
+                # Windows では kill 後の終了コードが正の値なので、フラグで判定する。
+                if timed_out or rc < 0:
                     rc = 124
             except OSError as e:
                 print(f"[エラー] 実行失敗: {e}", file=sys.stderr)

@@ -270,6 +270,21 @@ def test_main_runs_mock_runner(tmp_path, monkeypatch):
     assert json.loads(status.read_text(encoding="utf-8"))["state"] == "done"
 
 
+@needs_bash
+def test_main_exec_timeout_reports_124(tmp_path, monkeypatch):
+    """時間切れで kill したスキルは OS によらず rc=124 で記録する(Windows では kill 後の rc が負にならない)。"""
+    slow = tmp_path / "slow_runner.sh"
+    slow.write_text("#!/usr/bin/env bash\nexec sleep 30\n", encoding="utf-8")  # exec: kill がそのまま sleep に届く
+    slow.chmod(0o755)
+    monkeypatch.setattr(C, "ollama_chat", fake_ollama([_plan("ok", {"skill": "bow", "seconds": 1, "reason": "礼"})]))
+    log = tmp_path / "log.jsonl"
+    C.main(["--skills", str(MOCK_SKILLS), "--runner", str(slow), "--log", str(log),
+            "--min-seconds-ratio", "0", "--exec-timeout-margin", "0.5", "お辞儀して"])
+    events = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
+    ends = [e for e in events if e["event"] == "step_end"]
+    assert [e["rc"] for e in ends] == [124]
+
+
 def test_main_dry_run_reject_clarify(tmp_path, monkeypatch):
     ok = _plan("ok", {"skill": "nod", "seconds": 5, "reason": ""})
     rc, events, _, _ = _main(tmp_path, monkeypatch, ok, "--dry-run")
