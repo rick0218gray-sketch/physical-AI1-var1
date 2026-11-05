@@ -26,7 +26,7 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Python syntax check
         run: python -m compileall -q nl_commander crane_act tests
-      - name: Lint (pyflakes rules: unused imports / variables, undefined names)
+      - name: "Lint (pyflakes rules: unused imports / variables, undefined names)"
         run: |
           python -m pip install ruff
           ruff check --select F .
