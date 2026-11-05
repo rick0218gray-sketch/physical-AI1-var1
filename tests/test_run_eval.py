@@ -6,8 +6,6 @@
 収録済みのファイルは読むだけで、書き換えない。
 """
 import json
-import shutil
-from pathlib import Path
 
 import pytest
 

@@ -2,7 +2,7 @@
 """skills.json が一部(例: bow だけ)しか無い段階でも動くかの確認。テストセットのうち、残したスキルだけで答えられるものを評価する。
   python eval/subset_check.py bow
 """
-import json, sys
+import sys
 from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
