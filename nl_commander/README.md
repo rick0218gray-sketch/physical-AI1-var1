@@ -32,5 +32,14 @@ python -X utf8 eval/run_eval.py --tag codex40 --models codex                    
 ```
 8b/7b 系は空き VRAM が 5500MiB 以上になるまで待つ(`--min-free-mib`, `--wait-min`)。結果の表と考察は docs/D_log.md。
 
+LLM なしでできること(収録済みの表は上書きしない):
+```bash
+# 収録済み JSONL から表だけ作り直して比較する(--summary-out で出力先を変える。--results-dir で読み書き先も変えられる)
+python3 eval/run_eval.py --from-results --tag mock40 --models qwen2.5:3b-instruct --summary-out /tmp/mock40.md
+diff /tmp/mock40.md eval/results/mock40__summary.md
+# 計画・採点ロジックと、偽 LLM + mock_run_skill.sh での逐次実行のテスト(リポジトリのルートで)
+python -m pytest -q
+```
+
 ## オーバーレイ(動画用)
 `python overlay.py --status-file /tmp/status.json` -> http://127.0.0.1:8765/ (`?bg=black` で黒背景)。画面録画で Gazebo に重ねる。
