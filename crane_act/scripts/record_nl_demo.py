@@ -58,7 +58,6 @@ def main():
     keep = []      # segments of the raw video to keep
     for cmd in commands:
         t0 = time.time() - t_rec
-        cues_cmd = []
         p = subprocess.Popen(['python3', '-u', 'commander.py', '--container', C, '--container-env', 'AUTO_START_SIM=0',
                               '--skills', f'{A_HOST}/skills.json', '--log', f'{A_HOST}/results/nl_demo_commander.jsonl',
                               cmd], cwd=D_LLM, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
@@ -91,7 +90,6 @@ def main():
         cues.append((t0, t_end_cmd, f'指令「{cmd}」', 0))
         if t_decide is not None:
             label = {'ok': '実行', 'reject': '拒否', 'clarify': '確認'}.get(decision, decision)
-            plan = ' → '.join(SKILL_JA.get(s['skill'], s['skill']) for s in steps) if steps else ''
             first = steps[0]['t_start'] if steps else t_decide + 3.5  # reject/clarify: keep the answer readable
             cues.append((t_decide, first, f'LLM の判定: {label}　{message}', 1))
             # keep: the command appears (1.5 s), then from the decision on (LLM latency cut out)
@@ -103,7 +101,6 @@ def main():
                 # cut the gap between the decision and the first motion (docker exec start-up)
             if steps:
                 keep[-1] = (t_decide - 0.3, t_decide + 2.5)
-                prev_end = None
                 for s in steps:
                     keep.append((s['t_start'] - 0.3, s['t_end'] + 0.5))
         else:

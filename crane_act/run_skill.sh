@@ -36,5 +36,12 @@ cd "${PAI_TRAINING_ROOT:-$HOME/pai_training}"
 exec 9>/tmp/run_skill.lock
 flock -w 60 9 || { echo "another skill is running"; exit 3; }
 ~/.pixi/bin/pixi run --quiet python $A/scripts/skill_runner.py --model-path "$MODEL" --seconds "$SEC" --log "$LOGCSV" 2>&1 | grep -v -E "WARN|pyproject|system-requirements|libc|platforms|glibc|^\s*[│╭╰├·]|help:|^ *$"
+RC=${PIPESTATUS[0]}   # skill_runner.py の終了コード(grep のものではなく)
 echo "log: $LOGCSV"
+if [ "$RC" -ne 0 ]; then
+  # 例: /joint_states が無く skill_runner.py が 2 で終わった。CSV が無いので eval_traj.py は走らせず、
+  # その終了コードをそのまま返す(ヘッダの「2 = sim not available」の契約どおり)。
+  echo "skill_runner exit code: $RC"
+  exit "$RC"
+fi
 python3 $A/scripts/eval_traj.py "$SKILL" "$LOGCSV" 2>/dev/null

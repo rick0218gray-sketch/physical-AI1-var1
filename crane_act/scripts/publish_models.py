@@ -13,7 +13,7 @@ from skills import DESCRIPTIONS  # noqa: E402
 A = '/workspace/a_crane'
 HOME = os.path.expanduser('~')
 path = f'{A}/skills.json'
-d = json.load(open(path)) if os.path.exists(path) else {}
+d = json.load(open(path, encoding='utf-8')) if os.path.exists(path) else {}
 for arg in sys.argv[1:]:
     skill, name = arg.split('=')
     src = f'{HOME}/checkpoints/{name}'
@@ -25,7 +25,7 @@ for arg in sys.argv[1:]:
     frames = 0
     log = f'{HOME}/logs/convert_{name}.log'
     if os.path.exists(log):
-        m = re.findall(r'padded to (\d+)', open(log).read())
+        m = re.findall(r'padded to (\d+)', open(log, encoding='utf-8', errors='replace').read())
         frames = int(m[-1]) if m else 0
     d[skill] = {'model_path': dst, 'description': DESCRIPTIONS[skill],
                 'default_seconds': round(frames / 20 + 0.5, 1) if frames else 8.0,

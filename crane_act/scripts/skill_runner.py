@@ -110,7 +110,6 @@ def run_once(node, policy, mode, seconds, device, log_path, chunk_exec=1):
             with torch.no_grad():
                 a = policy.select_action(obs).cpu().numpy().flatten()
         node.publish(a)
-        lat = time.time() - t0 - i * DT
         rows.append([round(t, 3)] + s.tolist() + a.tolist())
         i += 1
         # 20 Hz on the SIMULATION clock (the training data was resampled on sim time)
@@ -189,7 +188,6 @@ def main():
         time.sleep(float(os.environ.get('START_DELAY', '0')))
         open(os.environ['START_MARKER'], 'w').close()
         time.sleep(float(os.environ.get('START_DELAY', '0')))
-    rc = 0
     for k in range(args.trials):
         log_path = args.log
         if args.log and args.trials > 1:
